@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+    # NGINX
+    nginx:
+        build:
+            context: ./docker/nginx
+        container_name: webservice_nginx
+        restart: unless-stopped
+        tty: true
+        ports:
+            - "80:80"
+        volumes:
+            - ./:/var/www/generator
+            - ./docker/nginx/sites/:/etc/nginx/sites-available
+            - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+        depends_on:
+            - php-fpm
+
+    # PHP-FPM
+    php-fpm:
+        env_file: .env
+        build:
+            context: ./docker/php-fpm
+        container_name: webservice_php-fpm
+        restart: on-failure
+        working_dir: /var/www/generator
+        tty: true
+        volumes:
+            - ./:/var/www/generator
+        environment:
+            PHP_IDE_CONFIG: serverName=Docker
+            PHP_FPM_LISTEN==: /var/run/php/php-fpm.sock
+        extra_hosts:
+            - host.docker.internal:host-gateway
+
+    # REDIS
+    redis:
+        image: redis:7.2-alpine
+        container_name: webservice_redis
+        command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis-data:/var/lib/redisdata
+        restart: always
+
+volumes:
+    redis-data:
